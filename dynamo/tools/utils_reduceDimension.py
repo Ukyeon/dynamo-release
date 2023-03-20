@@ -148,6 +148,7 @@ def run_reduce_dim(
     cores,
     **kwargs,
 ):
+
     if reduction_method == "trimap":
         try:
             import trimap
@@ -220,12 +221,12 @@ def run_reduce_dim(
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             (
-                mapper,
+                # mapper,
                 graph,
                 knn_indices,
                 knn_dists,
                 X_dim,
-            ) = umap_conn_indices_dist_embedding(X_data, n_neighbors, **umap_kwargs)
+            ) = umap_conn_indices_dist_embedding(X_data, n_neighbors, return_mapper=False, **umap_kwargs)
 
         adata.obsm[embedding_key] = X_dim
         knn_dists = knn_to_adj(knn_indices, knn_dists)
@@ -236,12 +237,12 @@ def run_reduce_dim(
             "indices": knn_indices,
         }
 
-        layer = neighbor_key.split("_")[0] if neighbor_key.__contains__("_") else None
-        neighbor_result_prefix = "" if layer is None else layer
-        conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
+        # layer = neighbor_key.split("_")[0] if neighbor_key.__contains__("_") else None
+        # neighbor_result_prefix = "" if layer is None else layer
+        # conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
 
         adata.uns["umap_fit"] = {
-            "fit": mapper,
+            # "fit": mapper,
             "n_pca_components": n_pca_components,
         }
     elif reduction_method == "psl":

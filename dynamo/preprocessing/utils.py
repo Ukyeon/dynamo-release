@@ -873,7 +873,7 @@ def pca_monocle(
 
         adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
 
-    adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
+    # adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
     adata.uns["pca_mean"] = fit.mean_ if hasattr(fit, "mean_") else None
 
     if return_all:

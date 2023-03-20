@@ -210,6 +210,8 @@ def umap_conn_indices_dist_embedding(
             nearest neighbors (knn_dists) and finally the low dimensional embedding (embedding_).
     """
 
+    import timeit
+
     from sklearn.metrics import pairwise_distances
     from sklearn.utils import check_random_state
     from umap.umap_ import (
@@ -219,6 +221,7 @@ def umap_conn_indices_dist_embedding(
         simplicial_set_embedding,
     )
 
+    starttime = timeit.default_timer()
     # also see github issue at: https://github.com/lmcinnes/umap/issues/798
     default_epochs = 500 if X.shape[0] <= 10000 else 200
     max_iter = default_epochs if max_iter is None else max_iter
@@ -316,8 +319,116 @@ def umap_conn_indices_dist_embedding(
         densmap_kwds=densmap_kwds,
         output_dens=output_dens,
     )
+    print("The simplicial_set_embedding time difference is :", timeit.default_timer() - starttime)
 
-    if return_mapper:
+    DUM.n_neighbors = n_neighbors
+    DUM.n_components = n_components
+    DUM.metric = metric
+    DUM.min_dist = min_dist
+    DUM.spread = spread
+    DUM.n_epochs = max_iter
+    DUM.learning_rate = alpha
+    DUM.repulsion_strength = gamma
+    DUM.negative_sample_rate = negative_sample_rate
+    DUM.init = init_pos
+    DUM.random_state = random_state
+    DUM.verbose = verbose
+    DUM.umap_kwargs = umap_kwargs
+
+    return graph, knn_indices, knn_dists, embedding_
+
+
+class DynamoUmapManager:
+    def __init__(
+        self,
+        n_neighbors=15,
+        n_components=2,
+        metric="euclidean",
+        metric_kwds=None,
+        output_metric="euclidean",
+        output_metric_kwds=None,
+        n_epochs=None,
+        learning_rate=1.0,
+        init="spectral",
+        min_dist=0.1,
+        spread=1.0,
+        low_memory=True,
+        n_jobs=-1,
+        set_op_mix_ratio=1.0,
+        local_connectivity=1.0,
+        repulsion_strength=1.0,
+        negative_sample_rate=5,
+        transform_queue_size=4.0,
+        a=None,
+        b=None,
+        random_state=None,
+        angular_rp_forest=False,
+        target_n_neighbors=-1,
+        target_metric="categorical",
+        target_metric_kwds=None,
+        target_weight=0.5,
+        transform_seed=42,
+        transform_mode="embedding",
+        force_approximation_algorithm=False,
+        verbose=False,
+        tqdm_kwds=None,
+        unique=False,
+        densmap=False,
+        dens_lambda=2.0,
+        dens_frac=0.3,
+        dens_var_shift=0.1,
+        output_dens=False,
+        disconnection_distance=None,
+        precomputed_knn=(None, None, None),
+        umap_kwargs=dict,
+    ):
+        self.n_neighbors = n_neighbors
+        self.metric = metric
+        self.output_metric = output_metric
+        self.target_metric = target_metric
+        self.metric_kwds = metric_kwds
+        self.output_metric_kwds = output_metric_kwds
+        self.n_epochs = n_epochs
+        self.init = init
+        self.n_components = n_components
+        self.repulsion_strength = repulsion_strength
+        self.learning_rate = learning_rate
+
+        self.spread = spread
+        self.min_dist = min_dist
+        self.low_memory = low_memory
+        self.set_op_mix_ratio = set_op_mix_ratio
+        self.local_connectivity = local_connectivity
+        self.negative_sample_rate = negative_sample_rate
+        self.random_state = random_state
+        self.angular_rp_forest = angular_rp_forest
+        self.transform_queue_size = transform_queue_size
+        self.target_n_neighbors = target_n_neighbors
+        self.target_metric = target_metric
+        self.target_metric_kwds = target_metric_kwds
+        self.target_weight = target_weight
+        self.transform_seed = transform_seed
+        self.transform_mode = transform_mode
+        self.force_approximation_algorithm = force_approximation_algorithm
+        self.verbose = verbose
+        self.tqdm_kwds = tqdm_kwds
+        self.unique = unique
+
+        self.densmap = densmap
+        self.dens_lambda = dens_lambda
+        self.dens_frac = dens_frac
+        self.dens_var_shift = dens_var_shift
+        self.output_dens = output_dens
+        self.disconnection_distance = disconnection_distance
+        self.precomputed_knn = precomputed_knn
+
+        self.n_jobs = n_jobs
+
+        self.a = a
+        self.b = b
+        self.umap_kwargs = umap_kwargs
+
+    def _umap_fit(self, X):
         import umap.umap_ as umap
 
         from .utils import update_dict
@@ -334,27 +445,26 @@ def umap_conn_indices_dist_embedding(
             "transform_queue_size": 4.0,
             "transform_seed": 42,
         }
-        umap_kwargs = update_dict(_umap_kwargs, umap_kwargs)
+        umap_kwargs = update_dict(_umap_kwargs, self.umap_kwargs)
 
-        mapper = umap.UMAP(
-            n_neighbors=n_neighbors,
-            n_components=n_components,
-            metric=metric,
-            min_dist=min_dist,
-            spread=spread,
-            n_epochs=max_iter,
-            learning_rate=alpha,
-            repulsion_strength=gamma,
-            negative_sample_rate=negative_sample_rate,
-            init=init_pos,
-            random_state=random_state,
-            verbose=verbose,
+        umapper = umap.UMAP(
+            self.n_neighbors,
+            self.n_components,
+            self.metric,
+            self.min_dist,
+            self.spread,
+            self.max_iter,
+            self.alpha,
+            self.gamma,
+            self.negative_sample_rate,
+            self.init_pos,
+            self.random_state,
+            self.verbose,
             **umap_kwargs,
         ).fit(X)
 
-        return mapper, graph, knn_indices, knn_dists, embedding_
-    else:
-        return graph, knn_indices, knn_dists, embedding_
+
+DUM = DynamoUmapManager
 
 
 def mnn_from_list(knn_graph_list):

@@ -1,4 +1,4 @@
-from typing import Callable, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 try:
     from typing import Literal
@@ -6,7 +6,6 @@ except ImportError:
     from typing_extensions import Literal
 
 import numpy as np
-import pandas as pd
 from anndata import AnnData
 
 from ..configuration import DKM
@@ -21,8 +20,7 @@ from ..external import (
     sctransform,
     select_genes_by_pearson_residuals,
 )
-from ..tools.connectivity import neighbors as default_neighbors
-from .preprocess import normalize_cell_expr_by_size_factors_legacy, pca_monocle
+from .preprocess import pca_monocle
 from .preprocessor_utils import _infer_labeling_experiment_type
 from .preprocessor_utils import (
     filter_cells_by_outliers as monocle_filter_cells_by_outliers,
@@ -37,6 +35,7 @@ from .preprocessor_utils import (
     select_genes_by_dispersion_general,
 )
 from .utils import (
+    basic_stats,
     collapse_species_adata,
     convert2symbol,
     convert_layers2csr,
@@ -51,7 +50,7 @@ class Preprocessor:
         collapse_speicies_adata_function: Callable = collapse_species_adata,
         convert_gene_name_function: Callable = convert2symbol,
         filter_cells_by_outliers_function: Callable = monocle_filter_cells_by_outliers,
-        filter_cells_by_outliers_kwargs: dict = {},
+        filter_cells_by_outliers_kwargs: Dict[str, Any] = {},
         filter_genes_by_outliers_function: Callable = monocle_filter_genes_by_outliers,
         filter_genes_by_outliers_kwargs: dict = {},
         normalize_by_cells_function: Callable = normalize_cell_expr_by_size_factors,
@@ -103,7 +102,7 @@ class Preprocessor:
             force_gene_list: use this gene list as selected genes in monocle recipe pipeline. Defaults to None.
             sctransform_kwargs: arguments passed into sctransform function. Defaults to {}.
         """
-
+        self.basic_stats = basic_stats
         self.convert_layers2csr = convert_layers2csr
         self.unique_var_obs_adata = unique_var_obs_adata
         self.log1p = log1p_adata
@@ -225,6 +224,7 @@ class Preprocessor:
 
         adata.uns["pp"] = {}
         adata.uns["pp"]["norm_method"] = None
+        self.basic_stats(adata)
         self.add_experiment_info(adata, tkey, experiment_type)
         main_info_insert_adata("tkey=%s" % tkey, "uns['pp']", indent_level=2)
         main_info_insert_adata("experiment_type=%s" % adata.uns["pp"]["experiment_type"], "uns['pp']", indent_level=2)
@@ -393,7 +393,7 @@ class Preprocessor:
         self.filter_cells_by_outliers_kwargs = {
             "filter_bool": None,
             "layer": "all",
-            "min_expr_genes_s": min(200, 0.01 * n_genes), ### TEMP! test
+            "min_expr_genes_s": min(200, 0.01 * n_genes),  ### TEMP! test
             "min_expr_genes_u": max(25, 0.01 * n_genes),
             "min_expr_genes_p": max(2, 0.01 * n_genes),
             "max_expr_genes_s": np.inf,
@@ -406,7 +406,7 @@ class Preprocessor:
         self.filter_genes_by_outliers_kwargs = {
             "filter_bool": None,
             "layer": "all",
-            "min_cell_s": min(3, 0.01 * n_cells), ### TEMP! test
+            "min_cell_s": min(3, 0.01 * n_cells),  ### TEMP! test
             "min_cell_u": max(5, 0.005 * n_cells),
             "min_cell_p": max(5, 0.005 * n_cells),
             "min_avg_exp_s": 0,
@@ -467,7 +467,7 @@ class Preprocessor:
         self._filter_genes_by_outliers(adata)  ### not inplace??
         self._select_genes(adata)
 
-        # gene selection has been completed above. Now we need to append/delete/force selected gene list required by users.
+        # Now we need to append/delete/force selected gene lists required by users.
         self._append_gene_list(adata)
         self._exclude_gene_list(adata)
         self._force_gene_list(adata)

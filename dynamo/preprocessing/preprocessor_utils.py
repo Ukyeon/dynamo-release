@@ -1,5 +1,5 @@
 import warnings
-from typing import Callable, List, Tuple, Union, Optional
+from typing import Callable, List, Optional, Tuple, Union
 
 try:
     from typing import Literal
@@ -718,7 +718,7 @@ def select_genes_monocle(
         scale_to=None,
         splicing_total_layers=False,
         X_total_layers=False,
-        layers=adata.uns["pp"]["experiment_layers"], ### what if experiment_layers is None?
+        layers=adata.uns["pp"]["experiment_layers"],  ### what if experiment_layers is None?
         genes_use_for_norm=None,
     )
 
@@ -1136,8 +1136,11 @@ def filter_cells_by_outliers(
 
     if max_pmito_s is not None:
         detected_bool = detected_bool & (adata.obs["pMito"] < max_pmito_s)
-        main_info("filtered out %d cells by %f%% of mitochondrial genes for a cell."
-                  % (adata.n_obs - (adata.obs["pMito"] < max_pmito_s).sum(), max_pmito_s), indent_level=2)
+        main_info(
+            "filtered out %d cells by %f%% of mitochondrial genes for a cell."
+            % (adata.n_obs - (adata.obs["pMito"] < max_pmito_s).sum(), max_pmito_s),
+            indent_level=2,
+        )
 
     filter_bool = detected_bool if filter_bool is None else np.array(filter_bool) & detected_bool
 
@@ -1147,7 +1150,7 @@ def filter_cells_by_outliers(
     else:
         main_info("inplace subsetting adata by filtered cells", indent_level=2)
         adata._inplace_subset_obs(filter_bool)
-        adata.obs[obs_store_key] = True ### CHECK: necessary?
+        adata.obs[obs_store_key] = True  ### CHECK: necessary?
 
     return adata
 
@@ -1190,7 +1193,7 @@ def get_filter_mask_cells_by_outliers(
         detected_mask = detected_mask & get_sum_in_range_mask(
             layer_data, layer2range[layer][0], layer2range[layer][1], axis=1, data_min_val_threshold=0
         )
-        main_info("filtered out %d cells by layer:%s" %(adata.n_obs - detected_mask.sum(), layer), indent_level=2)
+        main_info("filtered out %d cells by layer:%s" % (adata.n_obs - detected_mask.sum(), layer), indent_level=2)
 
     if shared_count is not None:
         main_info("filtering cells by shared counts from all layers", indent_level=2)
@@ -1393,7 +1396,7 @@ def normalize_cell_expr_by_size_factors(
     layers_to_sz = list(set(layer_sz_column_names))
     if len(layers_to_sz) > 0:
         layers = pd.Series(layers_to_sz).str.split("_Size_Factor", expand=True).iloc[:, 0].tolist()
-        if "Size_Factor" in layers:
+        if "Size_Factor" in layers:  ### CHECK: Always TRUE...
             layers[np.where(np.array(layers) == "Size_Factor")[0][0]] = "X"
         calc_sz_factor(
             adata,
@@ -1466,9 +1469,8 @@ def normalize_cell_expr_by_size_factors(
             main_info_insert_adata_obsm("X_" + layer)
             adata.layers["X_" + layer] = CM
 
-        main_info_insert_adata_uns("pp.norm_method")
-        adata.uns["pp"]["norm_method"] = _norm_method.__name__ if callable(_norm_method) else _norm_method
-
+    main_info_insert_adata_uns("pp.norm_method")
+    adata.uns["pp"]["norm_method"] = _norm_method.__name__ if callable(_norm_method) else _norm_method
     return adata
 
 

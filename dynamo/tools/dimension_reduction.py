@@ -89,6 +89,7 @@ def reduceDimension(
             n_pca_components=n_pca_components,
             n_components=n_components,
         )
+
     if basis[:2] + reduction_method in adata.obsm_keys():
         has_basis = True
     else:
