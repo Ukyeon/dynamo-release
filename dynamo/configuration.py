@@ -100,18 +100,27 @@ class DynamoAdataKeyManager:
         return layer in adata.layers
 
     def get_available_layer_keys(adata, layers="all", remove_pp_layers=True, include_protein=True):
-        """Get the list of available layers' keys. If `layers` is set to all, return a list of all available layers; if `layers` is set to a list, then the intersetion of available layers and `layers` will be returned."""
+        """Get the list of available layers' keys.
+
+        Args:
+            adata: an AnnData object.
+
+        Returns:
+            If `layers` is set to "all", return a list of all available layers;
+            if `layers` is set to a list, then the intersection of available layers and `layers` will be returned.
+        """
         layer_keys = list(adata.layers.keys())
+        layer_keys.append("X")
+
         if remove_pp_layers:
             layer_keys = [i for i in layer_keys if not i.startswith("X_")]
-
         if "protein" in adata.obsm.keys() and include_protein:
-            layer_keys.extend(["X", "protein"])
-        else:
-            layer_keys.extend(["X"])
-        res_layers = layer_keys if layers == "all" else list(set(layer_keys).intersection(list(layers)))
-        res_layers = list(set(res_layers).difference(["matrix", "ambiguous", "spanning"]))
-        return res_layers
+            layer_keys.append("protein")
+
+        res_layers = [DKM.X_LAYER] if layers is None else list(layers)
+        res_layers = layer_keys if layers == "all" else list(set(layer_keys).intersection(res_layers))
+
+        return list(set(res_layers).difference(["matrix", "ambiguous", "spanning"]))
 
     def allowed_layer_raw_names():
         only_splicing = ["spliced", "unspliced"]

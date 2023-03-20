@@ -99,7 +99,7 @@ def convert2symbol(adata: AnnData, scopes: Union[str, Iterable, None] = None, su
         The updated AnnData object.
     """
 
-    if np.all(adata.var_names.str.startswith("ENS")) or scopes is not None:
+    if np.all(adata.var_names.str.startswith("ENS")) or scopes is not None:  ### should be np.all? or np.any?
         logger = LoggerManager.gen_logger("dynamo-utils")
         logger.info("convert ensemble name to official gene name", indent_level=1)
 
@@ -1014,12 +1014,10 @@ def detect_experiment_datatype(adata: anndata.AnnData) -> Tuple[bool, bool, bool
         data.
     """
 
-    has_splicing, has_labeling, splicing_labeling, has_protein = (
-        False,
-        False,
-        False,
-        False,
-    )
+    has_splicing = False
+    has_labeling = False
+    splicing_labeling = False
+    has_protein = False
 
     layers = adata.layers.keys()
     if (

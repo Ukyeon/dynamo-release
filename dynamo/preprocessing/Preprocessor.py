@@ -227,20 +227,17 @@ class Preprocessor:
         adata.uns["pp"]["norm_method"] = None
         self.add_experiment_info(adata, tkey, experiment_type)
         main_info_insert_adata("tkey=%s" % tkey, "uns['pp']", indent_level=2)
-        main_info_insert_adata("experiment_type=%s" % experiment_type, "uns['pp']", indent_level=2)
-        main_info("making adata observation index unique...")
-        self.unique_var_obs_adata(adata)
+        main_info_insert_adata("experiment_type=%s" % adata.uns["pp"]["experiment_type"], "uns['pp']", indent_level=2)
+
+        main_info("applying collapse species adata and convert a layer of sparse matrix to compressed csr_matrix...")
         self.convert_layers2csr(adata)
+        self.collapse_species_adata(adata)
 
-        if self.collapse_species_adata:
-            main_info("applying collapse species adata...")
-            self.collapse_species_adata(adata)
+        main_info("applying convert_gene_name function...")
+        self.convert_gene_name(adata)
 
-        if self.convert_gene_name:
-            main_info("applying convert_gene_name function...")
-            self.convert_gene_name(adata)
-            main_info("making adata observation index unique after gene name conversion...")
-            self.unique_var_obs_adata(adata)
+        main_info("making the index of both the observation and variable attributes unique...")
+        self.unique_var_obs_adata(adata)
 
     def _filter_cells_by_outliers(self, adata: AnnData) -> None:
         """Select valid cells based on the method specified as the preprocessor's `filter_cells_by_outliers`.
@@ -390,26 +387,26 @@ class Preprocessor:
             gene_selection_method: Which sorting method to be used to select genes. Defaults to "SVR".
         """
 
-        n_obs, n_genes = adata.n_obs, adata.n_vars
-        n_cells = n_obs
+        n_cells, n_genes = adata.n_obs, adata.n_vars
         self.use_log1p = False
         self.filter_cells_by_outliers = monocle_filter_cells_by_outliers
         self.filter_cells_by_outliers_kwargs = {
             "filter_bool": None,
             "layer": "all",
-            "min_expr_genes_s": min(50, 0.01 * n_genes),
-            "min_expr_genes_u": min(25, 0.01 * n_genes),
-            "min_expr_genes_p": min(2, 0.01 * n_genes),
+            "min_expr_genes_s": min(200, 0.01 * n_genes), ### TEMP! test
+            "min_expr_genes_u": max(25, 0.01 * n_genes),
+            "min_expr_genes_p": max(2, 0.01 * n_genes),
             "max_expr_genes_s": np.inf,
             "max_expr_genes_u": np.inf,
             "max_expr_genes_p": np.inf,
+            "max_pmito_s": 0.05,
             "shared_count": None,
         }
         self.filter_genes_by_outliers = monocle_filter_genes_by_outliers
         self.filter_genes_by_outliers_kwargs = {
             "filter_bool": None,
             "layer": "all",
-            "min_cell_s": max(5, 0.01 * n_cells),
+            "min_cell_s": min(3, 0.01 * n_cells), ### TEMP! test
             "min_cell_u": max(5, 0.005 * n_cells),
             "min_cell_p": max(5, 0.005 * n_cells),
             "min_avg_exp_s": 0,
@@ -467,8 +464,7 @@ class Preprocessor:
         self.standardize_adata(adata, tkey, experiment_type)
 
         self._filter_cells_by_outliers(adata)
-        self._filter_genes_by_outliers(adata)
-        self._filter_cells_by_outliers(adata)
+        self._filter_genes_by_outliers(adata)  ### not inplace??
         self._select_genes(adata)
 
         # gene selection has been completed above. Now we need to append/delete/force selected gene list required by users.

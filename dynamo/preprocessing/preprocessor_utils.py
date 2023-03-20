@@ -1,5 +1,5 @@
 import warnings
-from typing import Callable, List, Tuple, Union
+from typing import Callable, List, Tuple, Union, Optional
 
 try:
     from typing import Literal
@@ -334,10 +334,11 @@ def select_genes_by_dispersion_general(
     elif recipe == "monocle":
         # TODO refactor dynamo monocle selection genes part code and make it modular (same as the two functions above)
         # the logics here for dynamo recipe is different from the above recipes
-        # Note we do not need to pass subset_adata here because monocle takes care of everything regarding dynamo
+        # Note we do not need to pass subset_adata here because monocle takes care of everything regarding dynamo.. WHY?
         # convention
         select_genes_monocle(adata, **monocle_kwargs)
         adata.var[DKM.VAR_GENE_HIGHLY_VARIABLE_KEY] = adata.var[DKM.VAR_USE_FOR_PCA]
+        ### select_genes_by_monocle_recipe
         return
     else:
         raise NotImplementedError("Selected gene seletion recipe not supported.")
@@ -717,7 +718,7 @@ def select_genes_monocle(
         scale_to=None,
         splicing_total_layers=False,
         X_total_layers=False,
-        layers=adata.uns["pp"]["experiment_layers"],
+        layers=adata.uns["pp"]["experiment_layers"], ### what if experiment_layers is None?
         genes_use_for_norm=None,
     )
 
@@ -1025,8 +1026,9 @@ def filter_genes_by_outliers(
         )
 
     filter_bool = filter_bool & detected_bool if filter_bool is not None else detected_bool
-
+    main_info_insert_adata_var("pass_basic_filter")
     adata.var["pass_basic_filter"] = np.array(filter_bool).flatten()
+    main_info("filtered out %d genes by outliers" % (adata.n_vars - filter_bool.sum()), indent_level=2)
 
     if inplace:
         adata._inplace_subset_var(adata.var["pass_basic_filter"])
@@ -1067,6 +1069,7 @@ def filter_cells_by_outliers(
     max_expr_genes_s: float = np.inf,
     max_expr_genes_u: float = np.inf,
     max_expr_genes_p: float = np.inf,
+    max_pmito_s: Optional[float] = None,
     shared_count: Union[int, None] = None,
     spliced_key="spliced",
     unspliced_key="unspliced",
@@ -1092,6 +1095,7 @@ def filter_cells_by_outliers(
             Defaults to np.inf.
         max_expr_genes_p: maximal number of protein with expression for a cell in the data from the protein layer.
             Defaults to np.inf.
+        max_pmito_s: maximal percentage of mitochondrial genes for a cell in the data from the spliced layer.
         shared_count: the minimal shared number of counts for each cell across genes between layers. Defaults to None.
         spliced_key: name of the layer storing spliced data. Defaults to "spliced".
         unspliced_key: name of the layer storing unspliced data. Defaults to "unspliced".
@@ -1130,19 +1134,20 @@ def filter_cells_by_outliers(
         adata, layer_keys_used_for_filtering, predefined_range_dict, shared_count
     )
 
-    if filter_bool is None:
-        filter_bool = detected_bool
-    else:
-        filter_bool = np.array(filter_bool) & detected_bool
+    if max_pmito_s is not None:
+        detected_bool = detected_bool & (adata.obs["pMito"] < max_pmito_s)
+        main_info("filtered out %d cells by %f%% of mitochondrial genes for a cell."
+                  % (adata.n_obs - (adata.obs["pMito"] < max_pmito_s).sum(), max_pmito_s), indent_level=2)
 
-    main_info_insert_adata_obs(obs_store_key)
+    filter_bool = detected_bool if filter_bool is None else np.array(filter_bool) & detected_bool
+
     if keep_filtered:
-        main_info("keep filtered cell", indent_level=2)
+        main_info_insert_adata_obs(obs_store_key)
         adata.obs[obs_store_key] = filter_bool
     else:
         main_info("inplace subsetting adata by filtered cells", indent_level=2)
         adata._inplace_subset_obs(filter_bool)
-        adata.obs[obs_store_key] = True
+        adata.obs[obs_store_key] = True ### CHECK: necessary?
 
     return adata
 
@@ -1181,11 +1186,11 @@ def get_filter_mask_cells_by_outliers(
             main_info("skip filtering by layer:%s as it is not in adata." % layer)
             continue
 
-        main_info("filtering cells by layer:%s" % layer, indent_level=2)
         layer_data = DKM.select_layer_data(adata, layer)
         detected_mask = detected_mask & get_sum_in_range_mask(
             layer_data, layer2range[layer][0], layer2range[layer][1], axis=1, data_min_val_threshold=0
         )
+        main_info("filtered out %d cells by layer:%s" %(adata.n_obs - detected_mask.sum(), layer), indent_level=2)
 
     if shared_count is not None:
         main_info("filtering cells by shared counts from all layers", indent_level=2)

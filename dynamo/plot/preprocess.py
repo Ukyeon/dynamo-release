@@ -1080,8 +1080,8 @@ def highest_frac_genes(
 
         else:
             main_warning(
-                "%s not in adata.var, ignoring the gene annotation key when plotting",
-                indent_level=2,
+                gene_annotation_key + " is not in adata.var, ignoring the gene annotation key when plotting.",
+                indent_level=2
             )
 
     if orient == "v":
