@@ -490,19 +490,19 @@ class ss_estimation:
             clusters: `list`
                 A list of n clusters, each element is a list of indices of the samples which belong to this cluster.
         """
+        import timeit
+
+        starttime = timeit.default_timer()
+
         n_genes = self.get_n_genes()
         cores = max(1, int(self.cores))
+
         # fit mRNA
         if self.extyp.lower() in ["conventional", "kin"]:
             if self.model.lower() == "deterministic":
                 if np.all(self._exist_data("uu", "su")):
                     self.parameters["beta"] = np.ones(n_genes)
-                    gamma, gamma_intercept, gamma_r2, gamma_logLL = (
-                        np.zeros(n_genes),
-                        np.zeros(n_genes),
-                        np.zeros(n_genes),
-                        np.zeros(n_genes),
-                    )
+                    gamma, gamma_intercept, gamma_r2, gamma_logLL = np.zeros((n_genes, 4))
                     U = self.data["uu"] if self.data["ul"] is None else self.data["uu"] + self.data["ul"]
                     S = self.data["su"] if self.data["sl"] is None else self.data["su"] + self.data["sl"]
                     if cores == 1:
@@ -516,6 +516,7 @@ class ss_estimation:
                                 gamma_logLL[i],
                             ) = self.fit_gamma_steady_state(U[i], S[i], intercept, perc_left, perc_right)
                     else:
+
                         pool = ThreadPool(cores)
                         res = pool.starmap(
                             self.fit_gamma_steady_state,
@@ -614,6 +615,8 @@ class ss_estimation:
                         np.zeros(n_genes),
                         np.zeros(n_genes),
                     )
+                    # gamma, gamma_intercept, gamma_r2, gamma_logLL, bs, bf = [np.zeros(n_genes) for _ in range(6)]
+
                     U = self.data["uu"] if self.data["ul"] is None else self.data["uu"] + self.data["ul"]
                     S = self.data["su"] if self.data["sl"] is None else self.data["su"] + self.data["sl"]
                     US = (
@@ -648,8 +651,9 @@ class ss_estimation:
                                 normalize=True,
                             )
                     else:
-                        pool = ThreadPool(cores)
-                        res = pool.starmap(
+
+                        multime = timeit.default_timer()
+                        res2 = self.multi_thread(
                             self.fit_gamma_stochastic,
                             zip(
                                 itertools.repeat(self.est_method),
@@ -662,26 +666,93 @@ class ss_estimation:
                                 itertools.repeat(True),
                             ),
                         )
-                        pool.close()
-                        pool.join()
                         (
-                            gamma,
-                            gamma_intercept,
+                            gamma2,
+                            gamma_intercept2,
                             _,
-                            gamma_r2,
+                            gamma_r22,
                             _,
-                            gamma_logLL,
-                            bs,
-                            bf,
-                        ) = zip(*res)
-                        (gamma, gamma_intercept, gamma_r2, gamma_logLL, bs, bf,) = (
-                            np.array(gamma),
-                            np.array(gamma_intercept),
-                            np.array(gamma_r2),
-                            np.array(gamma_logLL),
-                            np.array(bs),
-                            np.array(bf),
+                            gamma_logLL2,
+                            bs2,
+                            bf2,
+                        ) = zip(*res2)
+                        (gamma2, gamma_intercept2, gamma_r22, gamma_logLL2, bs2, bf2) = (
+                            np.array(gamma2),
+                            np.array(gamma_intercept2),
+                            np.array(gamma_r22),
+                            np.array(gamma_logLL2),
+                            np.array(bs2),
+                            np.array(bf2),
                         )
+                        print("The end of the fit of multi_thread is :", timeit.default_timer() - multime)
+
+                        # multime2 = timeit.default_timer()
+                        # res3 = self.multi_process(self.fit_gamma_stochastic, zip(
+                        #     itertools.repeat(self.est_method),
+                        #     U,
+                        #     S,
+                        #     US,
+                        #     S2,
+                        #     itertools.repeat(perc_left),
+                        #     itertools.repeat(perc_right),
+                        #     itertools.repeat(True)))
+                        # (
+                        #     gamma23,
+                        #     gamma_intercept23,
+                        #     _,
+                        #     gamma_r223,
+                        #     _,
+                        #     gamma_logLL23,
+                        #     bs23,
+                        #     bf23,
+                        # ) = zip(*res3)
+                        # (gamma3, gamma_intercept3, gamma_r3, gamma_logLL3, bs3, bf3) = (
+                        #     np.array(gamma23),
+                        #     np.array(gamma_intercept23),
+                        #     np.array(gamma_r223),
+                        #     np.array(gamma_logLL23),
+                        #     np.array(bs23),
+                        #     np.array(bf23),
+                        # )
+                        # print("The end of the fit of multi_process is :", timeit.default_timer() - multime2)
+                        #
+                        #
+                        # core3time = timeit.default_timer()
+                        # pool = ThreadPool(cores)
+                        # res = pool.starmap(
+                        #     self.fit_gamma_stochastic,
+                        #     zip(
+                        #         itertools.repeat(self.est_method),
+                        #         U,
+                        #         S,
+                        #         US,
+                        #         S2,
+                        #         itertools.repeat(perc_left),
+                        #         itertools.repeat(perc_right),
+                        #         itertools.repeat(True),
+                        #     ),
+                        # )
+                        # pool.close()
+                        # pool.join()
+                        # (
+                        #     gamma,
+                        #     gamma_intercept,
+                        #     _,
+                        #     gamma_r2,
+                        #     _,
+                        #     gamma_logLL,
+                        #     bs,
+                        #     bf,
+                        # ) = zip(*res)
+                        # (gamma, gamma_intercept, gamma_r2, gamma_logLL, bs, bf,) = (
+                        #     np.array(gamma),
+                        #     np.array(gamma_intercept),
+                        #     np.array(gamma_r2),
+                        #     np.array(gamma_logLL),
+                        #     np.array(bs),
+                        #     np.array(bf),
+                        # )
+                        # print("The end of the fit of multi_process core3 is :", timeit.default_timer() - core3time)
                     (
                         self.parameters["gamma"],
                         self.aux_param["gamma_intercept"],
@@ -1552,6 +1623,8 @@ class ss_estimation:
                     _,  # self.aux_param["delta_logLL"],
                 ) = (delta, delta_intercept, delta_r2, delta_logLL)
 
+        print("The end of the fit of estimation is :", timeit.default_timer() - starttime)
+
     def fit_gamma_steady_state(self, u, s, intercept=True, perc_left=None, perc_right=5, normalize=True):
         """Estimate gamma using linear regression based on the steady state assumption.
 
@@ -1924,3 +1997,62 @@ class ss_estimation:
             if v is not None:
                 ret.append(k)
         return ret
+
+    def multi_thread(self, func, iterable):
+        pool = ThreadPool(3)
+        res = pool.starmap(func, iterable)
+        pool.close()
+        pool.join()
+
+        return res
+
+    def multi_process(self, func, iterable):
+        import multiprocessing
+        import os
+
+        # ps = multiprocessing.Manager().dict()
+        # create a process context of fork that copy a Python process from an existing process.
+        ctx = multiprocessing.get_context("fork")
+
+        n_genes = self.get_n_genes()
+
+        # for i in tqdm(range(n_genes), desc="estimating gamma"):
+        pc_chunksize = n_genes // os.cpu_count() + 1
+
+        pool = ctx.Pool(os.cpu_count())
+
+        try:
+            res = pool.starmap(func, iterable, chunksize=pc_chunksize)
+        finally:
+            pool.close()
+            pool.join()
+
+        return res
+
+        # bin_ind = np.ceil(np.arange(1, genes_step1.size + 1) / bin_size)
+        # max_bin = max(bin_ind)
+        #
+        # ps = multiprocessing.Manager().dict()
+        #
+        # # create a process context of fork that copy a Python process from an existing process.
+        # ctx = multiprocessing.get_context("fork")
+        #
+        # for i in range(1, int(max_bin) + 1):
+        #     genes_bin_regress = genes_step1[bin_ind == i]
+        #     umi_bin = X[cells_step1, :][:, genes_bin_regress]
+        #
+        #     mm = np.vstack((np.ones(data_step1.shape[0]), data_step1["log_umi"].values.flatten())).T
+        #
+        #     pc_chunksize = umi_bin.shape[1] // os.cpu_count() + 1
+        #
+        #     pool = ctx.Pool(os.cpu_count(), _parallel_init, [genes_bin_regress, umi_bin, gene_names, mm, ps])
+        #
+        #     try:
+        #         pool.map(func, range(umi_bin.shape[1]), chunksize=pc_chunksize)
+        #     finally:
+        #         pool.close()
+        #         pool.join()
+        #
+        # ps = ps._getvalue()
+        #
+        # return res

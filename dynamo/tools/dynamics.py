@@ -302,19 +302,11 @@ def dynamics(
     )
 
     X_data, X_fit_data = None, None
-    filter_list, filter_gene_mode_list = (
-        [
-            "use_for_pca",
-            "pass_basic_filter",
-            "no",
-        ],
-        ["final", "basic", "no"],
-    )
-    filter_checker = [i in adata.var.columns for i in filter_list[:2]]
-    filter_checker.append(True)
+    filter_list = ["use_for_pca", "pass_basic_filter", "no"]
+    filter_gene_mode_list = ["final", "basic", "no"]
+    filter_checker = [i in adata.var.columns for i in filter_list[:2]] + [True]
     filter_id = filter_gene_mode_list.index(filter_gene_mode)
     which_filter = np.where(filter_checker[filter_id:])[0][0] + filter_id
-
     filter_gene_mode = filter_gene_mode_list[which_filter]
 
     valid_bools = get_valid_bools(adata, filter_gene_mode)
@@ -367,7 +359,6 @@ def dynamics(
                 f"cells are all NaN values and cause issues for all downstream analysis. Please try to "
                 f"coarse-grain cell groupings. Cell number for each group are {adata.obs[group].value_counts()}"
             )
-
     else:
         _group = ["_all_cells"]
 
@@ -464,7 +455,7 @@ def dynamics(
             "one-shot",
         ]:
             """
-            # temporially convert to deterministic model as moment model for mix_std_stm
+            # temporally convert to deterministic model as moment model for mix_std_stm
              and other types of labeling experiment is ongoing."""
 
             model = "deterministic"
