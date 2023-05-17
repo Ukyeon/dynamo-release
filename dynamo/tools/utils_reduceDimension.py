@@ -293,13 +293,9 @@ def run_reduce_dim(
             # "distances": "distances",
             "indices": knn_indices,
         }
-
-        layer = neighbor_key.split("_")[0] if neighbor_key.__contains__("_") else None
-        neighbor_result_prefix = "" if layer is None else layer
-        conn_key, dist_key, neighbor_key = _gen_neighbor_keys(neighbor_result_prefix)
-
-        adata.uns["umap_fit"] = {
-            "fit": mapper,
+        adata.uns["umap"] = {
+            "X_data": X_data,
+            "umap_kwargs": umap_kwargs,
             "n_pca_components": n_pca_components,
         }
     elif reduction_method == "psl":

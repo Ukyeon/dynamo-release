@@ -110,6 +110,9 @@ def test_save_adata():
     dyn.vf.rank_jacobian_genes(adata, groups="leiden")
     adata.write_h5ad("debug11.h5ad")
 
+    dyn.pd.fate(adata, basis="umap", inverse_transform=True)
+    adata.write_h5ad("debug12.h5ad")
+
 
 if __name__ == "__main__":
     # test_scEU_seq()
