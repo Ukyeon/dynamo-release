@@ -40,6 +40,7 @@ def test_save_adata():
     adata.write_h5ad("debug1.h5ad")
 
     dyn.tl.reduceDimension(adata, enforce=True)
+    adata.uns.data.pop("umap_fit")
     adata.write_h5ad("debug2.h5ad")
 
     dyn.tl.leiden(adata)
